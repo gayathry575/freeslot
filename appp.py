@@ -1,220 +1,163 @@
 import pandas as pd
-from datetime import datetime
+import re
 
-# Load multiple timetable CSVs with proper column handling
-df1 = pd.read_csv("civil_timetable.csv").fillna("")
-df2 = pd.read_csv("datascience.csv").fillna("")
-df3 = pd.read_csv("eee.csv").fillna("")
-
-# Standardize column names across all dataframes
-# Civil has both Block and Classroom columns, let's use Classroom
-if 'Classroom' not in df1.columns and 'Block' in df1.columns:
-    df1['Classroom'] = df1['Block']
-
-# Data Science has both Block and Classroom columns
-if 'Classroom' not in df2.columns and 'Block' in df2.columns:
-    df2['Classroom'] = df2['Block']
-
-# Ensure all dataframes have the required columns
-required_columns = ['Department', 'Classroom', 'Day', 'Slot', 'Subject', 'Faculty']
-
-for df in [df1, df2, df3]:
-    for col in required_columns:
-        if col not in df.columns:
-            df[col] = ""
-
-# Select only the required columns to ensure consistent structure
-df1 = df1[required_columns]
-df2 = df2[required_columns]
-df3 = df3[required_columns]
-
-# Combine into one DataFrame
-df = pd.concat([df1, df2, df3], ignore_index=True)
-
-def clean_time_str(tstr):
-    if not isinstance(tstr, str):
-        return ""
-    tstr = tstr.replace("\n", "").replace(" ", "").lower()
-    tstr = tstr.replace("s", "").replace(".", ":")
-    # Handle special cases for civil timetable
-    if "pm" in tstr and "am" in tstr:
-        # Handle cases like "10:45am-11:35pm" which should be "10:45am-11:35am"
-        parts = tstr.split("-")
-        if len(parts) == 2:
-            if parts[0].endswith("am") and parts[1].endswith("pm"):
-                # Check if the second time should actually be am
-                time_part = parts[1].replace("pm", "")
-                try:
-                    h, m = time_part.split(":")
-                    if int(h) < 12:  # If hour is less than 12, it should be am
-                        parts[1] = parts[1].replace("pm", "am")
-                        tstr = "-".join(parts)
-                except:
-                    pass
-    return tstr
-
-def parse_time(tstr):
-    tstr = clean_time_str(tstr)
+def load_timetable_data(files):
+    """Load all timetable CSV files into a single DataFrame"""
+    all_data = []
+    for file in files:
+        df = pd.read_csv(file)
+        all_data.append(df)
     
-    # Handle special case for "10:45am-11:35pm" which should be "10:45am-11:35am"
-    if "pm" in tstr and "am" in tstr:
-        parts = tstr.split("-")
-        if len(parts) == 2:
-            if parts[0].endswith("am") and parts[1].endswith("pm"):
-                time_part = parts[1].replace("pm", "")
-                try:
-                    h, m = time_part.split(":")
-                    if int(h) < 12:  # If hour is less than 12, it should be am
-                        tstr = parts[0] + "-" + parts[1].replace("pm", "am")
-                except:
-                    pass
-    
-    # Fix for wrong 'pm' in morning hours if needed
-    if tstr.endswith("pm"):
-        try:
-            test = datetime.strptime(tstr, "%I:%M%p")
-            if test.hour < 8:  # assume am if hour <8 but marked pm
-                tstr = tstr.replace("pm", "am")
-        except:
-            pass
-    
+    return pd.concat(all_data, ignore_index=True)
+
+def parse_time_input(time_str):
+    """Convert time input like '8:00' to minutes since midnight"""
     try:
-        return datetime.strptime(tstr, "%I:%M%p").time()
-    except:
-        try:
-            return datetime.strptime(tstr, "%H:%M").time()
-        except:
-            return None
-
-def get_csv_slot_range(slot_str):
-    try:
-        slot_str = str(slot_str).replace("\n", "").replace(" ", "")
-        
-        # Handle different slot formats
-        if ":" in slot_str and "-" in slot_str:
-            # Standard format like "8:50-9:40" or "S8.50am-9.40am"
-            parts = slot_str.split("-")
-            
-            # Clean up the parts
-            start_part = parts[0].replace("S", "").replace("s", "")
-            end_part = parts[1]
-            
-            start = parse_time(start_part)
-            end = parse_time(end_part)
-            
-            return start, end
+        # Handle both HH:MM and H:MM formats
+        if ':' in time_str:
+            hours, minutes = map(int, time_str.split(':'))
         else:
-            return None, None
-    except:
-        return None, None
-
-def parse_query_time(query_time_str):
-    query_time_str = query_time_str.strip().lower()
-    for fmt in ["%I:%M%p", "%H:%M"]:
-        try:
-            return datetime.strptime(query_time_str, fmt).time()
-        except:
-            continue
-    # If just hour:minute like '14:00'
-    try:
-        h, m = query_time_str.split(":")
-        h, m = int(h), int(m)
-        return datetime.strptime(f"{h}:{m}", "%H:%M").time()
+            # If no colon, assume it's just hours
+            hours = int(time_str)
+            minutes = 0
+        
+        return hours * 60 + minutes
     except:
         return None
 
-def get_slots_for_time(day, query_time_str):
-    qtime = parse_query_time(query_time_str)
-    if not qtime:
-        return []
+def parse_slot_time(slot_str):
+    """Convert slot string like 'S2.05pm - 2.55pm' to time range in minutes"""
+    # Extract the time part from the slot string
+    match = re.search(r'S?(\d+\.\d+)(am|pm)?\s*-\s*(\d+\.\d+)(am|pm)?', slot_str, re.IGNORECASE)
+    if not match:
+        return None, None
     
-    day_lower = day.lower()
-    day_subset = df[df["Day"].str.lower() == day_lower]
-    results = []
+    start_time_str, start_period, end_time_str, end_period = match.groups()
     
-    for idx, row in day_subset.iterrows():
-        slot_str = str(row["Slot"])
+    # Convert to 24-hour format
+    def convert_to_minutes(time_str, period):
+        # Replace dot with colon for time parsing
+        time_str = time_str.replace('.', ':')
         
-        # Skip empty slots or free periods
-        if not slot_str or slot_str.lower() in ["free", "break", ""]:
+        # Handle cases where time might be like "2.05" or "2:05"
+        if ':' in time_str:
+            hours, minutes = map(int, time_str.split(':'))
+        else:
+            # If no colon, assume it's just hours
+            hours = int(time_str)
+            minutes = 0
+        
+        # FIX FOR DATA ERROR: Morning class times should not be PM
+        # If period is PM but time is between 1-11, assume it's a data entry error and change to AM
+        if period and period.lower() == 'pm' and 1 <= hours <= 11:
+            period = 'am'
+        
+        # Convert to 24-hour format based on period
+        if period and period.lower() == 'pm' and hours != 12:
+            hours += 12
+        elif period and period.lower() == 'am' and hours == 12:
+            hours = 0
+            
+        return hours * 60 + minutes
+    
+    start_minutes = convert_to_minutes(start_time_str, start_period)
+    end_minutes = convert_to_minutes(end_time_str, end_period)
+    
+    return start_minutes, end_minutes
+
+def find_free_classrooms(day, time_str, df):
+    """Find free classrooms for a given day and time"""
+    time_minutes = parse_time_input(time_str)
+    if time_minutes is None:
+        return "Invalid time format. Please use HH:MM format.", None
+    
+    # Filter for the requested day
+    day_data = df[df['Day'].str.lower() == day.lower()]
+    if day_data.empty:
+        return f"No data available for {day}.", None
+    
+    free_classrooms = []
+    occupied_classrooms = []
+    
+    # print(f"\nDebug: Looking for time {time_minutes//60}:{time_minutes%60:02d} on {day}")
+    
+    # Check each classroom for the given time
+    for _, row in day_data.iterrows():
+        start_minutes, end_minutes = parse_slot_time(row['Slot'])
+        
+        if start_minutes is None or end_minutes is None:
+            # print(f"  Could not parse slot: {row['Slot']}")
             continue
             
-        start, end = get_csv_slot_range(slot_str)
+        # Debug print to see what's being processed
+        # print(f"  Checking {row['Department']} {row['Block']} {row['Classroom']}: {row['Slot']} -> {start_minutes//60}:{start_minutes%60:02d}-{end_minutes//60}:{end_minutes%60:02d}")
         
-        if start and end and start <= qtime <= end:
-            results.append((row, start, end))
+        # Check if the requested time falls within this slot
+        if start_minutes <= time_minutes < end_minutes:
+            subject = str(row['Subject'])
+            # print(f"    MATCH! Subject: {subject}")
+            
+            # Classroom is free if subject is empty, NaN, or Break
+            if (pd.isna(subject) or subject.strip() == '' or subject == 'nan' or 
+                subject.lower() == 'break' or subject.lower() == 'mentor hour'):
+                free_classrooms.append({
+                    'Department': row['Department'],
+                    'Block': row['Block'],
+                    'Classroom': row['Classroom'],
+                    'Slot': row['Slot']
+                })
+                # print(f"    FREE: {row['Department']} {row['Block']} {row['Classroom']}")
+            else:
+                occupied_classrooms.append({
+                    'Department': row['Department'],
+                    'Block': row['Block'],
+                    'Classroom': row['Classroom'],
+                    'Subject': subject,
+                    'Slot': row['Slot']
+                })
+                # print(f"    OCCUPIED: {row['Department']} {row['Block']} {row['Classroom']}: {subject}")
+        # else:
+        #     print(f"    No match (input: {time_minutes//60}:{time_minutes%60:02d})")
     
-    return results
+    return free_classrooms, occupied_classrooms
 
-def check_all_classrooms(day, query_time_str):
-    """Check all classrooms for occupation status at a given time and day."""
-    qtime = parse_query_time(query_time_str)
-    if not qtime:
-        return f"Invalid time input: {query_time_str}"
+def main():
+    # List of CSV files to process
+    csv_files = ['civil_timetable_neat.csv', 'datascience.csv', 'eee.csv']
     
-    # Get all relevant slots
-    matches = get_slots_for_time(day, query_time_str)
+    try:
+        # Load all timetable data
+        df = load_timetable_data(csv_files)
+        print("Timetable data loaded successfully!")
+    except Exception as e:
+        print(f"Error loading data: {e}")
+        return
     
-    # Collect all classrooms
-    classrooms = {}
-    for _, row in df.iterrows():
-        classroom_id = (row["Department"], row["Classroom"])
-        classrooms[classroom_id] = {
-            "Department": row["Department"],
-            "Classroom": row["Classroom"]
-        }
+    # Get user input
+    day = input("Enter the day (e.g., Monday, Tuesday): ").strip()
+    time_str = input("Enter the time in normal way 8:00, 2:45 like that").strip()
     
-    # Initialize status as free
-    status_map = {key: "FREE" for key in classrooms}
+    # Find free classrooms
+    free_classrooms, occupied_classrooms = find_free_classrooms(day, time_str, df)
     
-    # Mark occupied slots
-    for row, start, end in matches:
-        dept = row["Department"]
-        classroom = row["Classroom"]
-        subject = str(row["Subject"]).strip()
-        faculty = str(row.get("Faculty", "")).strip()
-        key = (dept, classroom)
-        
-        if subject == "" or subject.lower() in ["free", "break"]:
-            status_map[key] = "FREE"
-        else:
-            # Mark as occupied
-            status_map[key] = f"OCCUPIED ({subject}{', '+faculty if faculty else ''})"
+    if isinstance(free_classrooms, str):  # Error message
+        print(free_classrooms)
+        return
     
-    # Generate output
-    output_lines = [f"At {query_time_str} on {day}:"]
-    for (dept, classroom), status in status_map.items():
-        # Get the relevant slot times for display
-        row_match = df[
-            (df["Department"] == dept) &
-            (df["Classroom"] == classroom) &
-            (df["Day"].str.lower() == day.lower())
-        ]
-        
-        if not row_match.empty:
-            # Find the row that matches our time
-            found = False
-            for _, row in row_match.iterrows():
-                slot_str = str(row["Slot"])
-                if slot_str and "-" in slot_str:
-                    start, end = get_csv_slot_range(slot_str)
-                    if start and end and start <= qtime <= end:
-                        start_str = start.strftime("%H:%M") if start else "N/A"
-                        end_str = end.strftime("%H:%M") if end else "N/A"
-                        line = f"- {dept} {classroom} [{start_str}-{end_str}] → {status}"
-                        output_lines.append(line)
-                        found = True
-                        break
-            if not found:
-                line = f"- {dept} {classroom} → {status}"
-                output_lines.append(line)
-        else:
-            line = f"- {dept} {classroom} → {status}"
-            output_lines.append(line)
+    # Display results
+    print(f"\nResults for {day} at {time_str}:")
     
-    return "\n".join(output_lines)
+    if free_classrooms:
+        print("\nFree Classrooms:")
+        for room in free_classrooms:
+            print(f"{room['Department']} - {room['Block']} - {room['Classroom']} ({room['Slot']})")
+    else:
+        print("\nNo free classrooms found.")
+    
+    if occupied_classrooms:
+        print("\nOccupied Classrooms:")
+        for room in occupied_classrooms:
+            print(f"{room['Department']} - {room['Block']} - {room['Classroom']}: {room['Subject']} ({room['Slot']})")
 
-# Example usage:
-day_input = input("Enter the day (e.g., Wednesday): ")
-time_input = input("Enter the time (e.g., 14:00): ")
-print(check_all_classrooms(day_input, time_input))
+if __name__ == "__main__":
+    main()
