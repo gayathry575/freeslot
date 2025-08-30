@@ -21,14 +21,6 @@ def parse_time_input(time_str):
             hours = int(time_str)
             minutes = 0
         
-        # For class timetable purposes, we need to determine if it's AM or PM
-        # Since class times are typically between 8:00-18:00, we'll assume:
-        # - Times 0:00-11:59 are AM
-        # - Times 12:00-23:59 are PM
-        # But we need to handle the fact that users might input 8:00 meaning 8:00 AM
-        
-        # If hours is between 0-11, it's AM (no conversion needed)
-        # If hours is between 12-23, it's PM (already in 24-hour format)
         return hours * 60 + minutes
     except:
         return None
@@ -87,19 +79,24 @@ def find_free_classrooms(day, time_str, df):
     free_classrooms = []
     occupied_classrooms = []
     
+    # print(f"\nDebug: Looking for time {time_minutes//60}:{time_minutes%60:02d} on {day}")
+    
     # Check each classroom for the given time
     for _, row in day_data.iterrows():
         start_minutes, end_minutes = parse_slot_time(row['Slot'])
         
         if start_minutes is None or end_minutes is None:
+            # print(f"  Could not parse slot: {row['Slot']}")
             continue
             
         # Debug print to see what's being processed
-        # print(f"Checking {row['Department']} {row['Block']} {row['Classroom']}: {row['Slot']} ({start_minutes//60}:{start_minutes%60:02d}-{end_minutes//60}:{end_minutes%60:02d}) vs input {time_minutes//60}:{time_minutes%60:02d}")
+        # print(f"  Checking {row['Department']} {row['Block']} {row['Classroom']}: {row['Slot']} -> {start_minutes//60}:{start_minutes%60:02d}-{end_minutes//60}:{end_minutes%60:02d}")
         
         # Check if the requested time falls within this slot
         if start_minutes <= time_minutes < end_minutes:
             subject = str(row['Subject'])
+            # print(f"    MATCH! Subject: {subject}")
+            
             # Classroom is free if subject is empty, NaN, or Break
             if (pd.isna(subject) or subject.strip() == '' or subject == 'nan' or 
                 subject.lower() == 'break' or subject.lower() == 'mentor hour'):
@@ -109,6 +106,7 @@ def find_free_classrooms(day, time_str, df):
                     'Classroom': row['Classroom'],
                     'Slot': row['Slot']
                 })
+                # print(f"    FREE: {row['Department']} {row['Block']} {row['Classroom']}")
             else:
                 occupied_classrooms.append({
                     'Department': row['Department'],
@@ -117,6 +115,9 @@ def find_free_classrooms(day, time_str, df):
                     'Subject': subject,
                     'Slot': row['Slot']
                 })
+                # print(f"    OCCUPIED: {row['Department']} {row['Block']} {row['Classroom']}: {subject}")
+        # else:
+        #     print(f"    No match (input: {time_minutes//60}:{time_minutes%60:02d})")
     
     return free_classrooms, occupied_classrooms
 
@@ -134,7 +135,7 @@ def main():
     
     # Get user input
     day = input("Enter the day (e.g., Monday, Tuesday): ").strip()
-    time_str = input("Enter the time in 24-hour format (HH:MM, e.g., 08:00 for 8:00 AM, 14:00 for 2:00 PM): ").strip()
+    time_str = input("Enter the time in normal way 8:00, 2:45 like that").strip()
     
     # Find free classrooms
     free_classrooms, occupied_classrooms = find_free_classrooms(day, time_str, df)
