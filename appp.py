@@ -11,7 +11,7 @@ def load_timetable_data(files):
     return pd.concat(all_data, ignore_index=True)
 
 def parse_time_input(time_str):
-    """Convert time input like '2:10' to minutes since midnight, assuming PM if not specified"""
+    """Convert time input like '8:00' to minutes since midnight"""
     try:
         # Handle both HH:MM and H:MM formats
         if ':' in time_str:
@@ -21,17 +21,14 @@ def parse_time_input(time_str):
             hours = int(time_str)
             minutes = 0
         
-        # If time is between 1-11, assume PM (typical class time)
-        # If time is between 13-23, it's already in 24-hour format
-        # If time is 12, assume PM
-        # If time is 0, assume 12 AM
-        if 1 <= hours <= 11:
-            hours += 12  # Convert to PM
-        elif hours == 12:
-            pass  # 12 PM
-        elif hours == 0:
-            hours = 0  # 12 AM
+        # For class timetable purposes, we need to determine if it's AM or PM
+        # Since class times are typically between 8:00-18:00, we'll assume:
+        # - Times 0:00-11:59 are AM
+        # - Times 12:00-23:59 are PM
+        # But we need to handle the fact that users might input 8:00 meaning 8:00 AM
         
+        # If hours is between 0-11, it's AM (no conversion needed)
+        # If hours is between 12-23, it's PM (already in 24-hour format)
         return hours * 60 + minutes
     except:
         return None
@@ -57,6 +54,11 @@ def parse_slot_time(slot_str):
             # If no colon, assume it's just hours
             hours = int(time_str)
             minutes = 0
+        
+        # FIX FOR DATA ERROR: Morning class times should not be PM
+        # If period is PM but time is between 1-11, assume it's a data entry error and change to AM
+        if period and period.lower() == 'pm' and 1 <= hours <= 11:
+            period = 'am'
         
         # Convert to 24-hour format based on period
         if period and period.lower() == 'pm' and hours != 12:
@@ -132,7 +134,7 @@ def main():
     
     # Get user input
     day = input("Enter the day (e.g., Monday, Tuesday): ").strip()
-    time_str = input("Enter the time (HH:MM format, e.g., 14:10 for 2:10 PM): ").strip()
+    time_str = input("Enter the time in 24-hour format (HH:MM, e.g., 08:00 for 8:00 AM, 14:00 for 2:00 PM): ").strip()
     
     # Find free classrooms
     free_classrooms, occupied_classrooms = find_free_classrooms(day, time_str, df)
