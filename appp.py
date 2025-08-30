@@ -1,5 +1,6 @@
 import pandas as pd
 from datetime import datetime
+import re
 
 # Load multiple timetable CSVs with proper column handling
 df1 = pd.read_csv("civil_timetable.csv").fillna("")
@@ -34,57 +35,34 @@ df = pd.concat([df1, df2, df3], ignore_index=True)
 def clean_time_str(tstr):
     if not isinstance(tstr, str):
         return ""
-    tstr = tstr.replace("\n", "").replace(" ", "").lower()
-    tstr = tstr.replace("s", "").replace(".", ":")
-    # Handle special cases for civil timetable
-    if "pm" in tstr and "am" in tstr:
-        # Handle cases like "10:45am-11:35pm" which should be "10:45am-11:35am"
-        parts = tstr.split("-")
-        if len(parts) == 2:
-            if parts[0].endswith("am") and parts[1].endswith("pm"):
-                # Check if the second time should actually be am
-                time_part = parts[1].replace("pm", "")
-                try:
-                    h, m = time_part.split(":")
-                    if int(h) < 12:  # If hour is less than 12, it should be am
-                        parts[1] = parts[1].replace("pm", "am")
-                        tstr = "-".join(parts)
-                except:
-                    pass
+    tstr = tstr.replace("\n", "").replace(" ", "").replace("S", "").replace("s", "")
+    tstr = tstr.replace(".", ":").lower()
+    # If already has am/pm, return as is
+    if "am" in tstr or "pm" in tstr:
+        return tstr
+    # Add am/pm if missing and possible
+    if re.match(r"^\d{1,2}:\d{2}$", tstr):
+        h, m = map(int, tstr.split(":"))
+        if h < 8:
+            tstr += "pm"
+        else:
+            tstr += "am"
     return tstr
 
 def parse_time(tstr):
     tstr = clean_time_str(tstr)
-    
-    # Handle special case for "10:45am-11:35pm" which should be "10:45am-11:35am"
-    if "pm" in tstr and "am" in tstr:
-        parts = tstr.split("-")
-        if len(parts) == 2:
-            if parts[0].endswith("am") and parts[1].endswith("pm"):
-                time_part = parts[1].replace("pm", "")
-                try:
-                    h, m = time_part.split(":")
-                    if int(h) < 12:  # If hour is less than 12, it should be am
-                        tstr = parts[0] + "-" + parts[1].replace("pm", "am")
-                except:
-                    pass
-    
-    # Fix for wrong 'pm' in morning hours if needed
-    if tstr.endswith("pm"):
+    # Try with am/pm
+    for fmt in ("%I:%M%p", "%H:%M"):
         try:
-            test = datetime.strptime(tstr, "%I:%M%p")
-            if test.hour < 8:  # assume am if hour <8 but marked pm
-                tstr = tstr.replace("pm", "am")
+            return datetime.strptime(tstr, fmt).time()
         except:
-            pass
-    
+            continue
+    # Try without am/pm
     try:
-        return datetime.strptime(tstr, "%I:%M%p").time()
+        h, m = map(int, tstr.split(":"))
+        return datetime.strptime(f"{h}:{m}", "%H:%M").time()
     except:
-        try:
-            return datetime.strptime(tstr, "%H:%M").time()
-        except:
-            return None
+        return None
 
 def get_csv_slot_range(slot_str):
     try:
@@ -147,71 +125,34 @@ def get_slots_for_time(day, query_time_str):
     return results
 
 def check_all_classrooms(day, query_time_str):
-    """Check all classrooms for occupation status at a given time and day."""
+    """List all classrooms with a slot covering the given time, and show if occupied or free."""
     qtime = parse_query_time(query_time_str)
     if not qtime:
         return f"Invalid time input: {query_time_str}"
-    
-    # Get all relevant slots
-    matches = get_slots_for_time(day, query_time_str)
-    
-    # Collect all classrooms
-    classrooms = {}
-    for _, row in df.iterrows():
-        classroom_id = (row["Department"], row["Classroom"])
-        classrooms[classroom_id] = {
-            "Department": row["Department"],
-            "Classroom": row["Classroom"]
-        }
-    
-    # Initialize status as free
-    status_map = {key: "FREE" for key in classrooms}
-    
-    # Mark occupied slots
-    for row, start, end in matches:
-        dept = row["Department"]
-        classroom = row["Classroom"]
-        subject = str(row["Subject"]).strip()
-        faculty = str(row.get("Faculty", "")).strip()
-        key = (dept, classroom)
-        
-        if subject == "" or subject.lower() in ["free", "break"]:
-            status_map[key] = "FREE"
-        else:
-            # Mark as occupied
-            status_map[key] = f"OCCUPIED ({subject}{', '+faculty if faculty else ''})"
-    
-    # Generate output
+
     output_lines = [f"At {query_time_str} on {day}:"]
-    for (dept, classroom), status in status_map.items():
-        # Get the relevant slot times for display
-        row_match = df[
-            (df["Department"] == dept) &
-            (df["Classroom"] == classroom) &
-            (df["Day"].str.lower() == day.lower())
-        ]
-        
-        if not row_match.empty:
-            # Find the row that matches our time
-            found = False
-            for _, row in row_match.iterrows():
-                slot_str = str(row["Slot"])
-                if slot_str and "-" in slot_str:
-                    start, end = get_csv_slot_range(slot_str)
-                    if start and end and start <= qtime <= end:
-                        start_str = start.strftime("%H:%M") if start else "N/A"
-                        end_str = end.strftime("%H:%M") if end else "N/A"
-                        line = f"- {dept} {classroom} [{start_str}-{end_str}] → {status}"
-                        output_lines.append(line)
-                        found = True
-                        break
-            if not found:
-                line = f"- {dept} {classroom} → {status}"
-                output_lines.append(line)
-        else:
-            line = f"- {dept} {classroom} → {status}"
-            output_lines.append(line)
-    
+    # For each row, check if the slot covers the time
+    day_rows = df[df["Day"].str.lower() == day.lower()]
+    found_any = False
+    for _, row in day_rows.iterrows():
+        slot_str = str(row["Slot"])
+        if slot_str and "-" in slot_str:
+            start, end = get_csv_slot_range(slot_str)
+            if start and end and start <= qtime <= end:
+                dept = row["Department"]
+                classroom = row["Classroom"]
+                subject = str(row["Subject"]).strip()
+                faculty = str(row.get("Faculty", "")).strip()
+                start_str = start.strftime("%H:%M") if start else "N/A"
+                end_str = end.strftime("%H:%M") if end else "N/A"
+                if subject == "" or subject.lower() in ["free", "break"]:
+                    status = "FREE"
+                else:
+                    status = f"OCCUPIED ({subject}{', '+faculty if faculty else ''})"
+                output_lines.append(f"- {dept} {classroom} [{start_str}-{end_str}] → {status}")
+                found_any = True
+    if not found_any:
+        output_lines.append("No classes found at this time.")
     return "\n".join(output_lines)
 
 # Example usage:
