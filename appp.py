@@ -146,7 +146,11 @@ def display_timetable_preview(df):
 
 def main():
     # List of CSV files to process
+<<<<<<< HEAD
     csv_files = ['mech.csv']  # Use your MECHANICAL CSV file
+=======
+    csv_files = ['civil_timetable_neat.csv', 'datascience.csv', 'eee.csv', 'mech.csv']
+>>>>>>> 5c7b288374c7c3def2a7242c4ef20c3c194efb10
     
     try:
         # Load all timetable data
