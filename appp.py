@@ -123,7 +123,7 @@ def find_free_classrooms(day, time_str, df):
 
 def main():
     # List of CSV files to process
-    csv_files = ['civil_timetable_neat.csv', 'datascience.csv', 'eee.csv']
+    csv_files = ['civil_timetable_neat.csv', 'datascience.csv', 'eee.csv', 'mech.csv']
     
     try:
         # Load all timetable data
