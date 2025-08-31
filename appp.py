@@ -1,33 +1,12 @@
 import pandas as pd
 import re
-import os
 
 def load_timetable_data(files):
     """Load all timetable CSV files into a single DataFrame"""
     all_data = []
     for file in files:
-        try:
-            # Check if file exists and is not empty
-            if not os.path.exists(file):
-                print(f"Warning: File {file} does not exist. Skipping.")
-                continue
-                
-            if os.path.getsize(file) == 0:
-                print(f"Warning: File {file} is empty. Skipping.")
-                continue
-                
-            # Try to read the CSV file
-            df = pd.read_csv(file)
-            print(f"✓ Successfully loaded {file} with {len(df)} rows")
-            all_data.append(df)
-            
-        except pd.errors.EmptyDataError:
-            print(f"Warning: File {file} is empty or has no columns. Skipping.")
-        except Exception as e:
-            print(f"Error loading {file}: {e}")
-    
-    if not all_data:
-        raise Exception("No data was loaded from any file")
+        df = pd.read_csv(file)
+        all_data.append(df)
     
     return pd.concat(all_data, ignore_index=True)
 
@@ -47,12 +26,9 @@ def parse_time_input(time_str):
         return None
 
 def parse_slot_time(slot_str):
-    """Convert slot string like 'S8:50am - 9:40am' to time range in minutes"""
-    # Remove the 'S' prefix if present
-    slot_str = slot_str.replace('S', '')
-    
+    """Convert slot string like 'S2.05pm - 2.55pm' to time range in minutes"""
     # Extract the time part from the slot string
-    match = re.search(r'(\d+:\d+)(am|pm)?\s*-\s*(\d+:\d+)(am|pm)?', slot_str, re.IGNORECASE)
+    match = re.search(r'S?(\d+\.\d+)(am|pm)?\s*-\s*(\d+\.\d+)(am|pm)?', slot_str, re.IGNORECASE)
     if not match:
         return None, None
     
@@ -60,13 +36,21 @@ def parse_slot_time(slot_str):
     
     # Convert to 24-hour format
     def convert_to_minutes(time_str, period):
-        # Handle time format like "8:50"
+        # Replace dot with colon for time parsing
+        time_str = time_str.replace('.', ':')
+        
+        # Handle cases where time might be like "2.05" or "2:05"
         if ':' in time_str:
             hours, minutes = map(int, time_str.split(':'))
         else:
             # If no colon, assume it's just hours
             hours = int(time_str)
             minutes = 0
+        
+        # FIX FOR DATA ERROR: Morning class times should not be PM
+        # If period is PM but time is between 1-11, assume it's a data entry error and change to AM
+        if period and period.lower() == 'pm' and 1 <= hours <= 11:
+            period = 'am'
         
         # Convert to 24-hour format based on period
         if period and period.lower() == 'pm' and hours != 12:
@@ -95,29 +79,34 @@ def find_free_classrooms(day, time_str, df):
     free_classrooms = []
     occupied_classrooms = []
     
-    print(f"\nSearching for time: {time_minutes//60}:{time_minutes%60:02d} on {day}")
+    # print(f"\nDebug: Looking for time {time_minutes//60}:{time_minutes%60:02d} on {day}")
     
     # Check each classroom for the given time
     for _, row in day_data.iterrows():
         start_minutes, end_minutes = parse_slot_time(row['Slot'])
         
         if start_minutes is None or end_minutes is None:
+            # print(f"  Could not parse slot: {row['Slot']}")
             continue
             
+        # Debug print to see what's being processed
+        # print(f"  Checking {row['Department']} {row['Block']} {row['Classroom']}: {row['Slot']} -> {start_minutes//60}:{start_minutes%60:02d}-{end_minutes//60}:{end_minutes%60:02d}")
+        
         # Check if the requested time falls within this slot
         if start_minutes <= time_minutes < end_minutes:
             subject = str(row['Subject'])
+            # print(f"    MATCH! Subject: {subject}")
             
-            # Classroom is free if subject is empty, NaN, or Break/Mentoring
+            # Classroom is free if subject is empty, NaN, or Break
             if (pd.isna(subject) or subject.strip() == '' or subject == 'nan' or 
-                subject.lower() == 'break' or subject.lower() == 'mentor hour' or
-                subject.lower() == 'mentoring'):
+                subject.lower() == 'break' or subject.lower() == 'mentor hour'):
                 free_classrooms.append({
                     'Department': row['Department'],
                     'Block': row['Block'],
                     'Classroom': row['Classroom'],
                     'Slot': row['Slot']
                 })
+                # print(f"    FREE: {row['Department']} {row['Block']} {row['Classroom']}")
             else:
                 occupied_classrooms.append({
                     'Department': row['Department'],
@@ -126,105 +115,49 @@ def find_free_classrooms(day, time_str, df):
                     'Subject': subject,
                     'Slot': row['Slot']
                 })
+                # print(f"    OCCUPIED: {row['Department']} {row['Block']} {row['Classroom']}: {subject}")
+        # else:
+        #     print(f"    No match (input: {time_minutes//60}:{time_minutes%60:02d})")
     
     return free_classrooms, occupied_classrooms
 
-def display_timetable_preview(df):
-    """Display a preview of the timetable data"""
-    print("\n" + "="*60)
-    print("TIMETABLE PREVIEW")
-    print("="*60)
-    print(f"Total entries: {len(df)}")
-    print(f"Departments: {df['Department'].unique()}")
-    print(f"Days: {df['Day'].unique()}")
-    print(f"Blocks: {df['Block'].unique()}")
-    print(f"Classrooms: {df['Classroom'].unique()}")
-    
-    # Show first few entries
-    print("\nFirst 5 entries:")
-    print(df[['Department', 'Day', 'Slot', 'Subject']].head().to_string(index=False))
-
 def main():
     # List of CSV files to process
-<<<<<<< HEAD
-    csv_files = ['mech.csv']  # Use your MECHANICAL CSV file
-=======
     csv_files = ['civil_timetable_neat.csv', 'datascience.csv', 'eee.csv', 'mech.csv']
->>>>>>> 5c7b288374c7c3def2a7242c4ef20c3c194efb10
     
     try:
         # Load all timetable data
-        print("Loading timetable data...")
         df = load_timetable_data(csv_files)
-        print("✓ Timetable data loaded successfully!")
-        
-        # Display preview
-        display_timetable_preview(df)
-        
+        print("Timetable data loaded successfully!")
     except Exception as e:
-        print(f"❌ Error loading data: {e}")
-        print("Please make sure your mech.csv file exists and is properly formatted.")
-        print("The file should be in the same directory as this script.")
+        print(f"Error loading data: {e}")
         return
     
-    print("\n" + "="*60)
-    print("FREE SLOT FINDER")
-    print("="*60)
+    # Get user input
+    day = input("Enter the day (e.g., Monday, Tuesday): ").strip()
+    time_str = input("Enter the time in normal way 8:00, 2:45 like that").strip()
     
-    while True:
-        try:
-            # Get user input
-            print("\nEnter the details to find free classrooms:")
-            day = input("Day (e.g., Monday, Tuesday): ").strip()
-            
-            if day.lower() == 'exit':
-                print("Goodbye!")
-                break
-                
-            time_str = input("Time in HH:MM format (e.g., 8:30, 14:45): ").strip()
-            
-            if time_str.lower() == 'exit':
-                print("Goodbye!")
-                break
-            
-            # Find free classrooms
-            free_classrooms, occupied_classrooms = find_free_classrooms(day, time_str, df)
-            
-            if isinstance(free_classrooms, str):  # Error message
-                print(f"\n❌ {free_classrooms}")
-                continue
-            
-            # Display results
-            print(f"\n{'='*60}")
-            print(f"RESULTS FOR {day.upper()} AT {time_str}")
-            print(f"{'='*60}")
-            
-            if free_classrooms:
-                print(f"\n✅ FREE CLASSROOMS ({len(free_classrooms)} found):")
-                for i, room in enumerate(free_classrooms, 1):
-                    print(f"{i}. {room['Department']} - {room['Block']} - {room['Classroom']} ({room['Slot']})")
-            else:
-                print(f"\n❌ No free classrooms found at {time_str} on {day}")
-            
-            if occupied_classrooms:
-                print(f"\n🚫 OCCUPIED CLASSROOMS ({len(occupied_classrooms)} found):")
-                for i, room in enumerate(occupied_classrooms, 1):
-                    print(f"{i}. {room['Department']} - {room['Block']} - {room['Classroom']}: {room['Subject']} ({room['Slot']})")
-            
-            print(f"\n{'='*60}")
-            
-            # Ask if user wants to continue
-            cont = input("\nDo you want to check another time? (yes/no): ").strip().lower()
-            if cont not in ['yes', 'y', '']:
-                print("Goodbye!")
-                break
-                
-        except KeyboardInterrupt:
-            print("\n\nGoodbye!")
-            break
-        except Exception as e:
-            print(f"\n❌ An error occurred: {e}")
-            print("Please try again with valid inputs.")
+    # Find free classrooms
+    free_classrooms, occupied_classrooms = find_free_classrooms(day, time_str, df)
+    
+    if isinstance(free_classrooms, str):  # Error message
+        print(free_classrooms)
+        return
+    
+    # Display results
+    print(f"\nResults for {day} at {time_str}:")
+    
+    if free_classrooms:
+        print("\nFree Classrooms:")
+        for room in free_classrooms:
+            print(f"{room['Department']} - {room['Block']} - {room['Classroom']} ({room['Slot']})")
+    else:
+        print("\nNo free classrooms found.")
+    
+    if occupied_classrooms:
+        print("\nOccupied Classrooms:")
+        for room in occupied_classrooms:
+            print(f"{room['Department']} - {room['Block']} - {room['Classroom']}: {room['Subject']} ({room['Slot']})")
 
 if __name__ == "__main__":
     main()
