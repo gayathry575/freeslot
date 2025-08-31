@@ -80,7 +80,7 @@ def find_free_classrooms(day, time_str, df):
     return free_classrooms, occupied_classrooms
 
 # Load all timetable data once
-csv_files = ['civil_timetable_neat.csv', 'datascience.csv', 'eee.csv']
+csv_files = ['civil_timetable_neat.csv', 'datascience.csv', 'eee.csv','mech.csv']
 df = load_timetable_data(csv_files)
 
 def gradio_interface(day, time_str):
