@@ -1,0 +1,66 @@
+Department,Block,Classroom,Day,Slot,Subject,Faculty
+Physics,AB1,C109,Monday,S8.00am - 8.50am,22PHY201,Dr. A. K. Nandakumar
+Physics,AB1,C109,Monday,S8.50am - 9.40am,22PHY202,Dr. Saravana Veni
+Physics,AB1,C109,Monday,S9.40am - 10.30am,21ENV300,Dr. V. S. Ramachandran
+Physics,AB1,C109,Monday,S10.30am - 10.45am,Break,
+Physics,AB1,C109,Monday,S10.45am - 11.35am,22CHY204,Dr. K. Elango
+Physics,AB1,C109,Monday,S11.35am - 12.25pm,,
+Physics,AB1,C109,Monday,S12.25pm - 1.15pm,,
+Physics,AB1,C109,Monday,S1.15pm - 2.05pm,,
+Physics,AB1,C109,Monday,S2.05pm - 2.55pm,,
+Physics,AB1,C109,Monday,S2.55pm - 3.45pm,,
+Physics,AB1,C109,Monday,S3.45pm - 4.35pm,,
+Physics,AB1,C109,Monday,S4.35pm - 5.25pm,,
+Physics,AB1,C109,Monday,S5.25pm - 6.15pm,,
+Physics,AB1,C109,Tuesday,S8.00am - 8.50am,22PHY201,Dr. A. K. Nandakumar
+Physics,AB1,C109,Tuesday,S8.50am - 9.40am,22ADM211,Mr. M. S. Karthick
+Physics,AB1,C109,Tuesday,S9.40am - 10.30am,22PHY202,Dr. Saravana Veni
+Physics,AB1,C109,Tuesday,S10.30am - 10.45am,Break,
+Physics,AB1,C109,Tuesday,S10.45am - 11.35am,21ENV300,Dr. V. S. Ramachandran
+Physics,AB1,C109,Tuesday,S11.35am - 12.25pm,22CHY204,Dr. K. Elango
+Physics,AB1,C109,Tuesday,S12.25pm - 1.15pm,,
+Physics,AB1,C109,Tuesday,S1.15pm - 2.05pm,,
+Physics,AB1,C109,Tuesday,S2.05pm - 2.55pm,,
+Physics,AB1,C109,Tuesday,S2.55pm - 3.45pm,,
+Physics,AB1,C109,Tuesday,S3.45pm - 4.35pm,,
+Physics,AB1,C109,Tuesday,S4.35pm - 5.25pm,,
+Physics,AB1,C109,Tuesday,S5.25pm - 6.15pm,,
+Physics,AB1,C109,Wednesday,S8.00am - 8.50am,22PHY202,Dr. Saravana Veni
+Physics,AB1,C109,Wednesday,S8.50am - 9.40am,21ENV300,Dr. V. S. Ramachandran
+Physics,AB1,C109,Wednesday,S9.40am - 10.30am,22CHY204,Dr. K. Elango
+Physics,AB1,C109,Wednesday,S10.30am - 10.45am,Break,
+Physics,AB1,C109,Wednesday,S10.45am - 11.35am,22PHY201,Dr. A. K. Nandakumar
+Physics,AB1,C109,Wednesday,S11.35am - 12.25pm,,
+Physics,AB1,C109,Wednesday,S12.25pm - 1.15pm,,
+Physics,AB1,C109,Wednesday,S1.15pm - 2.05pm,,
+Physics,AB1,C109,Wednesday,S2.05pm - 2.55pm,,
+Physics,AB1,C109,Wednesday,S2.55pm - 3.45pm,,
+Physics,AB1,C109,Wednesday,S3.45pm - 4.35pm,,
+Physics,AB1,C109,Wednesday,S4.35pm - 5.25pm,,
+Physics,AB1,C109,Wednesday,S5.25pm - 6.15pm,,
+Physics,AB1,C109,Thursday,S8.00am - 8.50am,22PHY202,Dr. Saravana Veni
+Physics,AB1,C109,Thursday,S8.50am - 9.40am,22PHY201,Dr. A. K. Nandakumar
+Physics,AB1,C109,Thursday,S9.40am - 10.30am,22CHY204,Dr. K. Elango
+Physics,AB1,C109,Thursday,S10.30am - 10.45am,Break,
+Physics,AB1,C109,Thursday,S10.45am - 11.35am,,
+Physics,AB1,C109,Thursday,S11.35am - 12.25pm,,
+Physics,AB1,C109,Thursday,S12.25pm - 1.15pm,,
+Physics,AB1,C109,Thursday,S1.15pm - 2.05pm,,
+Physics,AB1,C109,Thursday,S2.05pm - 2.55pm,,
+Physics,AB1,C109,Thursday,S2.55pm - 3.45pm,,
+Physics,AB1,C109,Thursday,S3.45pm - 4.35pm,,
+Physics,AB1,C109,Thursday,S4.35pm - 5.25pm,,
+Physics,AB1,C109,Thursday,S5.25pm - 6.15pm,,
+Physics,AB1,C109,Friday,S8.00am - 8.50am,,
+Physics,AB1,C109,Friday,S8.50am - 9.40am,,
+Physics,AB1,C109,Friday,S9.40am - 10.30am,,
+Physics,AB1,C109,Friday,S10.30am - 10.45am,Break,
+Physics,AB1,C109,Friday,S10.45am - 11.35am,,
+Physics,AB1,C109,Friday,S11.35am - 12.25pm,,
+Physics,AB1,C109,Friday,S12.25pm - 1.15pm,,
+Physics,AB1,C109,Friday,S1.15pm - 2.05pm,,
+Physics,AB1,C109,Friday,S2.05pm - 2.55pm,,
+Physics,AB1,C109,Friday,S2.55pm - 3.45pm,,
+Physics,AB1,C109,Friday,S3.45pm - 4.35pm,,
+Physics,AB1,C109,Friday,S4.35pm - 5.25pm,,
+Physics,AB1,C109,Friday,S5.25pm - 6.15pm,,

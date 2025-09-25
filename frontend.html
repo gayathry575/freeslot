@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ta">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -21,16 +21,17 @@
       box-shadow: 0 4px 12px rgba(0,0,0,0.1);
       max-width: 400px;
       width: 100%;
+      text-align: center;
     }
     h1 {
-      text-align: center;
-      color: #2563eb;
+      color: #0d0404;
       margin-bottom: 1.5rem;
     }
     label {
       display: block;
       margin: 0.5rem 0 0.2rem;
       font-weight: bold;
+      text-align: left;
     }
     select, input {
       width: 100%;
@@ -42,7 +43,7 @@
     button {
       width: 100%;
       padding: 0.7rem;
-      background: #2563eb;
+      background: #810c0c;
       color: white;
       border: none;
       border-radius: 0.5rem;
@@ -50,7 +51,7 @@
       cursor: pointer;
     }
     button:hover {
-      background: #1d4ed8;
+      background: #810c0c;
     }
     .result {
       margin-top: 1rem;
@@ -69,6 +70,8 @@
 </head>
 <body>
   <div class="container">
+    <!-- Amrita Logo -->
+    <img src="amrita-logo.png" alt="Amrita Logo" style="width:200px; margin-bottom:1rem;">
     <h1>Free Slot Checker</h1>
     
     <label for="day">Select Day</label>
@@ -112,24 +115,8 @@
       checkBtn.textContent = "Checking...";
 
       try {
-        const client = await Client.connect("PraneshJs/FreeSlot");
+        const client = await Client.connect("gayathry3/freeslot");
         const result = await client.predict("/predict", {
           day: day,
           time_str: time
         });
-
-        freeDiv.textContent = "Free Classrooms: " + result.data[0];
-        occupiedDiv.textContent = "Occupied Classrooms: " + result.data[1];
-        freeDiv.style.display = "block";
-        occupiedDiv.style.display = "block";
-
-      } catch (err) {
-        console.error("Error:", err);
-        alert("Failed to fetch data!");
-      }
-
-      checkBtn.textContent = "Check Slots";
-    });
-  </script>
-</body>
-</html>

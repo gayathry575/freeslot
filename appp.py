@@ -86,7 +86,7 @@ def find_free_classrooms(day, time_str, df):
         start_minutes, end_minutes = parse_slot_time(row['Slot'])
         
         if start_minutes is None or end_minutes is None:
-            # print(f"  Could not parse slot: {row['Slot']}")
+            print(f"  Could not parse slot: {row['Slot']}")
             continue
             
         # Debug print to see what's being processed
@@ -123,7 +123,7 @@ def find_free_classrooms(day, time_str, df):
 
 def main():
     # List of CSV files to process
-    csv_files = ['civil_timetable_neat.csv', 'datascience.csv', 'eee.csv', 'mech.csv']
+    csv_files = ['datascience.csv','eee.csv']
     
     try:
         # Load all timetable data
@@ -148,16 +148,15 @@ def main():
     print(f"\nResults for {day} at {time_str}:")
     
     if free_classrooms:
-        print("\nFree Classrooms:")
+        print("\nFree Slots:")
         for room in free_classrooms:
-            print(f"{room['Department']} - {room['Block']} - {room['Classroom']} ({room['Slot']})")
+            print(f"{room['Department']} - {room['Block']} - {room['Classroom']} ")
     else:
-        print("\nNo free classrooms found.")
-    
-    if occupied_classrooms:
-        print("\nOccupied Classrooms:")
-        for room in occupied_classrooms:
-            print(f"{room['Department']} - {room['Block']} - {room['Classroom']}: {room['Subject']} ({room['Slot']})")
+        print("\nNo free slots found.")
 
+    if occupied_classrooms:
+        print("\nOngoing classes:")
+        for room in occupied_classrooms:
+            print(f"{room['Department']} - {room['Block']} - {room['Classroom']}: {room['Subject']} ")
 if __name__ == "__main__":
     main()
