@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="ta">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Free Slot Checker</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f3f4f6;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+    .container {
+      background: white;
+      padding: 2rem;
+      border-radius: 1rem;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      max-width: 400px;
+      width: 100%;
+      text-align: center;
+    }
+    h1 {
+      color: #0d0404;
+      margin-bottom: 1.5rem;
+    }
+    label {
+      display: block;
+      margin: 0.5rem 0 0.2rem;
+      font-weight: bold;
+      text-align: left;
+    }
+    select, input {
+      width: 100%;
+      padding: 0.5rem;
+      margin-bottom: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 0.5rem;
+    }
+    button {
+      width: 100%;
+      padding: 0.7rem;
+      background: #810c0c;
+      color: white;
+      border: none;
+      border-radius: 0.5rem;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #810c0c;
+    }
+    .result {
+      margin-top: 1rem;
+      padding: 0.7rem;
+      border-radius: 0.5rem;
+    }
+    .free {
+      background: #dcfce7;
+      border: 1px solid #22c55e;
+    }
+    .occupied {
+      background: #fee2e2;
+      border: 1px solid #ef4444;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Amrita Logo -->
+    <img src="static\amrita-logo.png" alt="Amrita Logo" style="width:200px; margin-bottom:1rem;">
+    <h1>Free Slot Checker</h1>
+    
+    <label for="department">Select Department</label>
+    <select id="department">
+      <!-- Options will be populated dynamically -->
+    </select>
+    
+    <label for="day">Select Day</label>
+    <select id="day">
+      <option>Monday</option>
+      <option>Tuesday</option>
+      <option>Wednesday</option>
+      <option>Thursday</option>
+      <option>Friday</option>
+      <option>Saturday</option>
+    </select>
+    
+    <label for="time">Enter Time</label>
+    <input type="text" id="time" placeholder="e.g., 8:50, 16:35"/>
+    
+    <button id="checkBtn">Check Slots</button>
+    
+    <div id="freeResult" class="result free" style="display:none;"></div>
+    <div id="occupiedResult" class="result occupied" style="display:none;"></div>
+  </div>
+
+  <script type="module">
+    const deptEl = document.getElementById("department");
+    const dayEl = document.getElementById("day");
+    const timeEl = document.getElementById("time");
+    const checkBtn = document.getElementById("checkBtn");
+    const freeDiv = document.getElementById("freeResult");
+    const occupiedDiv = document.getElementById("occupiedResult");
+
+    let allData = [];
+    let allDepts = new Set();
+    let loaded = false;
+
+    async function loadCSVs() {
+      // Replace these with your actual CSV file names/paths
+      const files = ['data/i5phy3.csv', 'data/mech.csv'];
+
+      const promises = files.map(async (file) => {
+        try {
+          const res = await fetch(file);
+          if (!res.ok) throw new Error(`Failed to load ${file}`);
+          const text = await res.text();
+          const lines = text.split('\n').slice(1); // Skip header
+          lines.forEach(line => {
+            if (line.trim()) {
+              const [dept, block, classroom, day, slot, subject, faculty] = line.split(',').map(s => s.trim());
+              allData.push({ dept, block, classroom, day, slot, subject, faculty });
+              allDepts.add(dept);
+            }
+          });
+        } catch (error) {
+          console.error(`Error loading ${file}:`, error);
+        }
+      });
+
+      await Promise.all(promises);
+
+      // Populate department dropdown, sorted alphabetically
+      const sortedDepts = Array.from(allDepts).sort();
+      sortedDepts.forEach(dept => {
+        const option = document.createElement('option');
+        option.value = dept;
+        option.textContent = dept;
+        deptEl.appendChild(option);
+      });
+
+      loaded = true;
+    }
+
+    function parseSlotTime(ts) {
+      ts = ts.replace('.', ':').toLowerCase().trim();
+      const isPM = ts.includes('pm');
+      const isAM = ts.includes('am');
+      ts = ts.replace(/am|pm/i, '').trim();
+      let [h, m] = ts.split(':').map(Number);
+      if (Number.isNaN(h) || Number.isNaN(m)) {
+        console.error(`Invalid time format: ${ts}`);
+        return null;
+      }
+      if (isPM && h < 12) h += 12;
+      if (isAM && h === 12) h = 0;
+      return h * 60 + m;
+    }
+
+    function isTimeInSlot(userMin, slot) {
+      let [startStr, endStr] = slot.split(' - ');
+      if (!startStr || !endStr) return false;
+      startStr = startStr.replace(/^S/i, '').trim(); // Remove optional 'S' prefix
+      const start = parseSlotTime(startStr);
+      const end = parseSlotTime(endStr);
+      if (start === null || end === null) return false;
+      return userMin >= start && userMin < end;
+    }
+
+    function parseUserTime(timeStr) {
+      timeStr = timeStr.replace('.', ':').trim();
+      const [uh, um] = timeStr.split(':').map(Number);
+      if (Number.isNaN(uh) || Number.isNaN(um)) {
+        throw new Error('Invalid time format');
+      }
+      const userMin = uh * 60 + um;
+      // College timings: 8:50 to 16:35
+      const startMin = 8 * 60 + 50; // 8:50
+      const endMin = 16 * 60 + 35;  // 16:35
+      if (userMin < startMin || userMin > endMin) {
+        throw new Error('Invalid format, please enter timing between 8:50 - 16:35 only');
+      }
+      return userMin;
+    }
+
+    checkBtn.addEventListener("click", async () => {
+      const dept = deptEl.value;
+      const day = dayEl.value;
+      const time = timeEl.value.trim();
+      if (!dept) {
+        alert("Please select a department");
+        return;
+      }
+      if (!time) {
+        alert("Please enter a time (e.g., 8:50, 16:35)");
+        return;
+      }
+
+      freeDiv.style.display = "none";
+      occupiedDiv.style.display = "none";
+      checkBtn.textContent = "Checking...";
+
+      try {
+        if (!loaded) await loadCSVs();
+
+        const userMin = parseUserTime(time);
+
+        // Filter data for selected department
+        const deptData = allData.filter(entry => entry.dept === dept);
+
+        // Get unique classrooms for this department
+        const deptClassrooms = new Set(deptData.map(entry => entry.classroom));
+
+        const occupiedDetails = [];
+        const occupiedClassrooms = new Set();
+        deptData.forEach(entry => {
+          if (entry.day === day && isTimeInSlot(userMin, entry.slot)) {
+            occupiedClassrooms.add(entry.classroom);
+            occupiedDetails.push({
+              classroom: entry.classroom,
+              faculty: entry.faculty
+            });
+          }
+        });
+
+        const freeClassrooms = new Set([...deptClassrooms].filter(c => !occupiedClassrooms.has(c)));
+
+        const freeSlots = Array.from(freeClassrooms).sort();
+        const occupiedSlots = occupiedDetails.sort((a, b) => a.classroom.localeCompare(b.classroom));
+
+        if (freeSlots.length > 0) {
+          freeDiv.innerHTML = `<strong>Free Slots:</strong><br/>${freeSlots.join("<br/>")}`;
+        } else {
+          freeDiv.innerHTML = "No free slots available.";
+        }
+        freeDiv.style.display = "block";
+
+        if (occupiedSlots.length > 0) {
+          const occupiedHtml = occupiedSlots.map(detail => 
+            `${detail.classroom} occupied by ${detail.faculty}`
+          ).join("<br/>");
+          occupiedDiv.innerHTML = `<strong>Occupied Slots:</strong><br/>${occupiedHtml}`;
+        } else {
+          occupiedDiv.innerHTML = "No occupied slots.";
+        }
+        occupiedDiv.style.display = "block";
+      } catch (error) {
+        alert(error.message || "Error processing data. Please check console for details.");
+        console.error(error);
+      } finally {
+        checkBtn.textContent = "Check Slots";
+      }
+    });
+
+    // Load CSVs and populate departments on page load
+    loadCSVs();
+  </script>
+</html>
