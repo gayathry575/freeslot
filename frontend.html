@@ -76,12 +76,19 @@
     
     <label for="department">Select Department</label>
     <select id="department">
+      <option value="" selected disabled>Select a department</option>
       <!-- Options will be populated dynamically -->
     </select>
     
     <label for="day">Select Day</label>
     <select id="day">
-      <!-- Options will be populated dynamically -->
+      <option value="" selected disabled>Select a day</option>
+      <option>Monday</option>
+      <option>Tuesday</option>
+      <option>Wednesday</option>
+      <option>Thursday</option>
+      <option>Friday</option>
+      <option>Saturday</option>
     </select>
     
     <label for="time">Enter Time</label>
@@ -136,15 +143,6 @@
         option.value = dept;
         option.textContent = dept;
         deptEl.appendChild(option);
-      });
-
-      // Populate day dropdown with options
-      const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-      days.forEach(day => {
-        const option = document.createElement('option');
-        option.value = day;
-        option.textContent = day;
-        dayEl.appendChild(option);
       });
 
       loaded = true;
@@ -225,11 +223,8 @@
           if (entry.day === day && isTimeInSlot(userMin, entry.slot)) {
             occupiedClassrooms.add(entry.classroom);
             occupiedDetails.push({
-              block: entry.block,
               classroom: entry.classroom,
-              dept: entry.dept,
-              subject: entry.subject || 'Unknown Course',
-              faculty: entry.faculty || 'Unknown Faculty'
+              faculty: entry.faculty
             });
           }
         });
@@ -248,7 +243,7 @@
 
         if (occupiedSlots.length > 0) {
           const occupiedHtml = occupiedSlots.map(detail => 
-            `${detail.block} ${detail.classroom} (${detail.dept}) - ${detail.subject} by ${detail.faculty}`
+            `${detail.classroom} occupied by ${detail.faculty}`
           ).join("<br/>");
           occupiedDiv.innerHTML = `<strong>Occupied Slots:</strong><br/>${occupiedHtml}`;
         } else {
