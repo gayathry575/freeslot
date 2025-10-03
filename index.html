@@ -20,65 +20,28 @@
       padding: 2rem;
       border-radius: 1rem;
       box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-      max-width: 450px;
+      max-width: 480px;
       width: 100%;
       text-align: center;
     }
-    h1 {
-      color: #0d0404;
-      margin-bottom: 1.5rem;
-    }
-    label {
-      display: block;
-      margin: 0.5rem 0 0.2rem;
-      font-weight: bold;
-      text-align: left;
-    }
+    h1 { color: #0d0404; margin-bottom: 1.5rem; }
+    label { display: block; margin: 0.5rem 0 0.2rem; font-weight: bold; text-align: left; }
     select, input {
-      width: 100%;
-      padding: 0.5rem;
-      margin-bottom: 1rem;
-      border: 1px solid #ccc;
-      border-radius: 0.5rem;
+      width: 100%; padding: 0.5rem; margin-bottom: 1rem;
+      border: 1px solid #ccc; border-radius: 0.5rem;
     }
     button {
-      width: 100%;
-      padding: 0.7rem;
-      background: #810c0c;
-      color: white;
-      border: none;
-      border-radius: 0.5rem;
-      font-size: 1rem;
-      cursor: pointer;
+      width: 100%; padding: 0.7rem; background: #810c0c;
+      color: white; border: none; border-radius: 0.5rem;
+      font-size: 1rem; cursor: pointer;
     }
-    button:hover {
-      background: #a10f0f;
-    }
-    .result {
-      margin-top: 1rem;
-      padding: 0.7rem;
-      border-radius: 0.5rem;
-      text-align: left;
-    }
-    .free {
-      background: #dcfce7;
-      border: 1px solid #22c55e;
-    }
-    .occupied {
-      background: #fee2e2;
-      border: 1px solid #ef4444;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-    }
+    button:hover { background: #a10f0f; }
+    .result { margin-top: 1rem; padding: 0.7rem; border-radius: 0.5rem; text-align: left; }
+    .free { background: #dcfce7; border: 1px solid #22c55e; }
+    .occupied { background: #fee2e2; border: 1px solid #ef4444; display: flex; flex-wrap: wrap; gap: 0.5rem; }
     .occupied-box {
-      background: #fff5f5;
-      border: 1px solid #ef4444;
-      border-radius: 0.5rem;
-      padding: 0.5rem;
-      flex: 1 1 calc(50% - 0.5rem);
-      box-sizing: border-box;
-      font-size: 0.9rem;
+      background: #fff5f5; border: 1px solid #ef4444; border-radius: 0.5rem;
+      padding: 0.5rem; flex: 1 1 calc(50% - 0.5rem); box-sizing: border-box; font-size: 0.9rem;
     }
   </style>
 </head>
@@ -121,35 +84,38 @@
     const occupiedDiv = document.getElementById("occupiedResult");
 
     let allData = [];
-    let allDepts = new Set();
     let loaded = false;
 
+    // 👇 add mapping for CSV files
+    const files = [
+      { name: "Physics", path: "data/chemistry.csv" },
+      { name: "Chemistry", path: "data/datascience.csv" },
+      { name: "Data Science", path: "data/physics.csv" }
+    ];
+
     async function loadCSVs() {
-      const files = ['data/i5phy3.csv','data/i5chem7.csv','data/datascience.csv']; 
-      const promises = files.map(async (file) => {
+      for (let f of files) {
         try {
-          const res = await fetch(file);
-          if (!res.ok) throw new Error(`Failed to load ${file}`);
+          const res = await fetch(f.path);
+          if (!res.ok) throw new Error(`Failed to load ${f.path}`);
           const text = await res.text();
-          const lines = text.split('\n').slice(1);
+          const lines = text.split('\n').slice(1); // skip header
           lines.forEach(line => {
             if (line.trim()) {
               const [dept, block, classroom, day, slot, subject, faculty] = line.split(',').map(s => s.trim());
-              allData.push({ dept, block, classroom, day, slot, subject, faculty });
-              allDepts.add(dept);
+              allData.push({ dept, block, classroom, day, slot, subject, faculty, fileDept: f.name });
             }
           });
-        } catch (error) {
-          console.error(`Error loading ${file}:`, error);
+        } catch (err) {
+          console.error(err);
         }
-      });
-      await Promise.all(promises);
+      }
 
-      const sortedDepts = Array.from(allDepts).sort();
-      sortedDepts.forEach(dept => {
-        const option = document.createElement('option');
-        option.value = dept;
-        option.textContent = dept;
+      // fill department dropdown based on file names
+      files.forEach(f => {
+        const option = document.createElement("option");
+        option.value = f.name;
+        option.textContent = f.name;
         deptEl.appendChild(option);
       });
 
@@ -202,8 +168,10 @@
         if (!loaded) await loadCSVs();
         const userMin = parseUserTime(time);
 
-        const deptData = allData.filter(entry => entry.dept === dept && entry.day === day);
+        // filter records for this dept + day
+        const deptData = allData.filter(entry => entry.fileDept === dept && entry.day === day);
 
+        // Handle break time
         const breakStart = 10*60 + 30;
         const breakEnd = 10*60 + 45;
         if (userMin >= breakStart && userMin < breakEnd) {
@@ -226,7 +194,6 @@
           .map(entry => ({
             block: entry.block,
             classroom: entry.classroom,
-            dept: entry.dept,
             subject: entry.subject,
             faculty: entry.faculty
           }));
@@ -251,9 +218,9 @@
         }
         occupiedDiv.style.display = "flex";
 
-      } catch (error) {
-        alert(error.message || "Error processing data.");
-        console.error(error);
+      } catch (err) {
+        alert(err.message || "Error processing data.");
+        console.error(err);
       } finally {
         checkBtn.textContent = "Check Slots";
       }
